@@ -1,12 +1,53 @@
-﻿services:
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: social-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in .env}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-n8n_social}
+      MYSQL_USER: ${MYSQL_USER:-social_app}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:${MYSQL_PUBLISHED_PORT:-3307}:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./database/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$${MYSQL_ROOT_PASSWORD}\" --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+    networks:
+      social-net:
+        aliases:
+          - mysql
+
   social-dashboard:
     build: .
     container_name: social-dashboard
     restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
     ports:
       - "8000:8000"
     environment:
-      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in your environment}
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: ${MYSQL_DATABASE:-n8n_social}
+      DB_USER: ${MYSQL_USER:-social_app}
+      DB_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env}
       N8N_GENERATE_WEBHOOK_URL: ${N8N_GENERATE_WEBHOOK_URL:-http://host.docker.internal:5678/webhook/generate-social-post}
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    networks:
+      - social-net
+
+volumes:
+  mysql-data:
+
+networks:
+  social-net:
+    name: social_media_net

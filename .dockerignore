@@ -1,0 +1,5 @@
+.env
+.git
+.venv-migrate
+__pycache__
+*.py[cod]
