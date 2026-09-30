@@ -1,0 +1,12 @@
+﻿services:
+  social-dashboard:
+    build: .
+    container_name: social-dashboard
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in your environment}
+      N8N_GENERATE_WEBHOOK_URL: ${N8N_GENERATE_WEBHOOK_URL:-http://host.docker.internal:5678/webhook/generate-social-post}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
