@@ -1,1 +1,125 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>SocialFlow</title><link rel="stylesheet" href="/static/style.css"></head><body><aside><h2>✳ SocialFlow</h2><p class="workspace">Nitish's Workspace</p><nav><button data-tab="dashboard" class="active">▦ Dashboard</button><button data-tab="create">✳ Create post</button><button data-tab="posts">▤ All posts</button><button data-tab="schedule">▦ Scheduler</button><button data-tab="logs">≋ Activity & logs</button></nav><footer><span id="health">Connecting…</span><p>Nitish Gaurav · Admin</p></footer></aside><main><header><span>Workspace / <b id="crumb">Dashboard</b></span><button id="refresh">↻ Refresh</button></header><section id="dashboard" class="tab"><div class="heading"><div><small>OVERVIEW</small><h1>Good day, Nitish ✦</h1><p>Here's what's happening with your social content.</p></div><button class="primary" data-open="create">＋ Create new post</button></div><div class="stats"><article><label>Total posts</label><strong id="total">—</strong><small>Across all platforms</small></article><article><label>Pending</label><strong id="pending">—</strong><small>Waiting to publish</small></article><article><label>Published</label><strong id="posted">—</strong><small>Successfully published</small></article><article><label>Failed</label><strong id="failed">—</strong><small>Need attention</small></article></div><div class="columns"><article class="panel"><h3>Recent posts</h3><div id="recent"></div></article><article class="panel"><h3>Platform overview</h3><div id="platforms"></div></article></div></section><section id="create" class="tab hidden"><small>AI CONTENT STUDIO</small><h1>Create a post</h1><p>Generate platform-specific content using n8n + Gemini.</p><div class="panel form"><label>Topic</label><textarea id="topic" rows="5" placeholder="e.g. How AI agents are changing business…"></textarea><label>Platforms</label><div class="checks"><label><input type="checkbox" value="Facebook" checked> Facebook</label><label><input type="checkbox" value="LinkedIn" checked> LinkedIn</label><label><input type="checkbox" value="Instagram" checked> Instagram</label></div><label>Public image URL (optional)</label><input id="image" placeholder="https://example.com/image.jpg"><button class="primary" id="generate">✳ Generate content</button><p id="genmsg"></p></div><div id="results" aria-live="polite"></div></section><section id="posts" class="tab hidden"><small>CONTENT LIBRARY</small><h1>All posts</h1><p>Search, edit, retry, or delete saved posts.</p><div class="panel"><div class="filters"><input id="search" placeholder="Search topic or content"><select id="filter"><option value="">All statuses</option><option>pending</option><option>posted</option><option>failed</option><option>approved</option><option>draft</option></select></div><div class="table-scroll"><table><thead><tr><th>POST</th><th>PLATFORM</th><th>STATUS</th><th>CREATED</th><th>ACTIONS</th></tr></thead><tbody id="rows"></tbody></table></div></div></section><section id="schedule" class="tab hidden"><small>PUBLISHING PLAN</small><h1>Scheduler</h1><p>Posts with scheduled dates.</p><div class="panel" id="scheduled"></div></section><section id="logs" class="tab hidden"><small>SYSTEM HEALTH</small><h1>Activity & logs</h1><p>Recent successes and failures.</p><div class="panel" id="logrows"></div></section></main><div id="modal" class="overlay hidden"><div class="dialog"><button class="close" id="close">×</button><h2>Edit post</h2><input type="hidden" id="eid"><label>Topic</label><input id="etopic"><label>Content</label><textarea id="econtent" rows="6"></textarea><label>Hashtags</label><input id="htags"><label>Image URL</label><input id="eimage"><label>Status</label><select id="estatus"><option>pending</option><option>approved</option><option>queued</option><option>posted</option><option>failed</option><option>draft</option></select><label>Scheduled at</label><input id="edate" type="datetime-local"><button class="primary" id="save">Save changes</button></div></div><div id="toast"></div><script src="/static/app.js"></script></body></html>
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>SocialFlow</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body>
+    <aside>
+        <h2>✳ SocialFlow</h2>
+        <p class="workspace">Nitish's Workspace</p>
+        <nav><button data-tab="dashboard" class="active">▦ Dashboard</button><button data-tab="create">✳ Create
+                post</button><button data-tab="posts">▤ All posts</button><button data-tab="schedule">▦
+                Scheduler</button><button data-tab="logs">≋ Activity & logs</button></nav>
+        <footer><span id="health">Connecting…</span>
+            <p>Nitish Gaurav · Admin</p>
+        </footer>
+    </aside>
+    <main>
+        <header><span>Workspace / <b id="crumb">Dashboard</b></span><button id="refresh">↻ Refresh</button></header>
+        <section id="dashboard" class="tab">
+            <div class="heading">
+                <div><small>OVERVIEW</small>
+                    <h1>Good day, Nitish ✦</h1>
+                    <p>Here's what's happening with your social content.</p>
+                </div><button class="primary" data-open="create">＋ Create new post</button>
+            </div>
+            <div class="stats">
+                <article><label>Total posts</label><strong id="total">—</strong><small>Across all platforms</small>
+                </article>
+                <article><label>Pending</label><strong id="pending">—</strong><small>Waiting to publish</small>
+                </article>
+                <article><label>Published</label><strong id="posted">—</strong><small>Successfully published</small>
+                </article>
+                <article><label>Failed</label><strong id="failed">—</strong><small>Need attention</small></article>
+            </div>
+            <div class="columns">
+                <article class="panel">
+                    <h3>Recent posts</h3>
+                    <div id="recent"></div>
+                </article>
+                <article class="panel">
+                    <h3>Platform overview</h3>
+                    <div id="platforms"></div>
+                </article>
+            </div>
+        </section>
+        <section id="create" class="tab hidden"><small>AI CONTENT STUDIO</small>
+            <h1>Create a post</h1>
+            <p>Generate platform-specific content using n8n + Gemini.</p>
+            <div class="panel form"><label>Topic</label><textarea id="topic" rows="5"
+                    placeholder="e.g. How AI agents are changing business…"></textarea><label>Platforms</label>
+                <div class="checks"><label><input type="checkbox" value="Facebook" checked>
+                        Facebook</label><label><input type="checkbox" value="LinkedIn" checked>
+                        LinkedIn</label><label><input type="checkbox" value="Instagram" checked> Instagram</label></div>
+                <label>Public image URL (optional)</label><input id="image"
+                    placeholder="https://example.com/image.jpg"><button class="primary" id="generate">✳ Generate
+                    content</button>
+                <p id="genmsg"></p>
+            </div>
+            <div id="results" aria-live="polite"></div>
+        </section>
+        <section id="posts" class="tab hidden"><small>CONTENT LIBRARY</small>
+            <h1>All posts</h1>
+            <p>Search, edit, retry, or delete saved posts.</p>
+            <div class="panel">
+                <div class="filters"><input id="search" placeholder="Search topic or content"><select id="filter">
+                        <option value="">All statuses</option>
+                        <option>pending</option>
+                        <option>posted</option>
+                        <option>failed</option>
+                        <option>approved</option>
+                        <option>draft</option>
+                    </select></div>
+                <div class="table-scroll">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>POST</th>
+                                <th>PLATFORM</th>
+                                <th>STATUS</th>
+                                <th>CREATED</th>
+                                <th>ACTIONS</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rows"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+        <section id="schedule" class="tab hidden"><small>PUBLISHING PLAN</small>
+            <h1>Scheduler</h1>
+            <p>Posts with scheduled dates.</p>
+            <div class="panel" id="scheduled"></div>
+        </section>
+        <section id="logs" class="tab hidden"><small>SYSTEM HEALTH</small>
+            <h1>Activity & logs</h1>
+            <p>Recent successes and failures.</p>
+            <div class="panel" id="logrows"></div>
+        </section>
+    </main>
+    <div id="modal" class="overlay hidden">
+        <div class="dialog"><button class="close" id="close">×</button>
+            <h2>Edit post</h2><input type="hidden" id="eid"><label>Topic</label><input
+                id="etopic"><label>Content</label><textarea id="econtent"
+                rows="6"></textarea><label>Hashtags</label><input id="htags"><label>Image URL</label><input
+                id="eimage"><label>Status</label><select id="estatus">
+                <option>pending</option>
+                <option>approved</option>
+                <option>queued</option>
+                <option>posted</option>
+                <option>failed</option>
+                <option>draft</option>
+            </select><label>Scheduled at</label><input id="edate" type="datetime-local"><button class="primary"
+                id="save">Save changes</button>
+        </div>
+    </div>
+    <div id="toast"></div>
+    <script src="/static/app.js"></script>
+</body>
+
+</html>
