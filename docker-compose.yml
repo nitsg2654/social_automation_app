@@ -1,9 +1,10 @@
-services:
+﻿services:
   mysql:
     image: mysql:8.4
     container_name: social-mysql
     restart: unless-stopped
     environment:
+      TZ: ${APP_TIMEZONE:-Asia/Kolkata}
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in .env}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-n8n_social}
       MYSQL_USER: ${MYSQL_USER:-social_app}
@@ -34,6 +35,8 @@ services:
     ports:
       - "8000:8000"
     environment:
+      TZ: ${APP_TIMEZONE:-Asia/Kolkata}
+      APP_TIMEZONE: ${APP_TIMEZONE:-Asia/Kolkata}
       DB_HOST: mysql
       DB_PORT: 3306
       DB_NAME: ${MYSQL_DATABASE:-n8n_social}

@@ -3,7 +3,9 @@ import logging
 import os
 from contextlib import contextmanager
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 from typing import Optional
+from urllib.parse import urlsplit
 from uuid import UUID, uuid4
 
 import httpx
@@ -17,6 +19,8 @@ from pydantic import BaseModel, Field
 logger = logging.getLogger("socialflow")
 HOOK = os.getenv("N8N_GENERATE_WEBHOOK_URL", "http://n8n:5678/webhook/generate-social-post")
 PLATFORMS = {"facebook": "Facebook", "linkedin": "LinkedIn", "instagram": "Instagram"}
+APP_TIMEZONE_NAME = os.getenv("APP_TIMEZONE", "Asia/Kolkata")
+APP_TIMEZONE = ZoneInfo(APP_TIMEZONE_NAME)
 app = FastAPI(title="SocialFlow API")
 
 
@@ -83,6 +87,42 @@ def mysql_datetime(value):
     return value
 
 
+def local_datetime(value):
+    """Interpret browser wall-clock scheduling input in APP_TIMEZONE, then store UTC-naive."""
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=APP_TIMEZONE)
+    return value.astimezone(timezone.utc).replace(tzinfo=None)
+
+
+def valid_platform_url(value):
+    if value is None:
+        return None
+    parsed = urlsplit(value.strip())
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        raise HTTPException(422, "platform_post_url must be a valid http(s) URL returned by the platform.")
+    return value.strip()
+
+
+def utc_json(value):
+    """MySQL DATETIME values in this app are UTC-naive; tag them before JSON output."""
+    if not isinstance(value, datetime):
+        return value
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
+def local_json(value):
+    """Return a zone-aware local timestamp for datetime-local controls and display."""
+    if not isinstance(value, datetime):
+        return value
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.astimezone(APP_TIMEZONE)
+
+
 @app.on_event("startup")
 def init_db():
     # A side table gives approvals a unique idempotency key without changing the
@@ -137,6 +177,7 @@ class Update(BaseModel):
 class PublishResult(BaseModel):
     status: str = Field(pattern="^(posted|failed)$")
     platform_post_id: Optional[str] = None
+    platform_post_url: Optional[str] = Field(default=None, max_length=2048)
     error_message: Optional[str] = None
     posted_at: Optional[datetime] = None
 
@@ -187,6 +228,44 @@ def posts(status: Optional[str] = None, platform: Optional[str] = None, limit: i
         logger.exception("Post listing query failed")
         raise HTTPException(503, "Could not load posts from MySQL. Verify the database schema and connection.") from e
 
+
+
+@app.get("/api/posts/published")
+def published_posts(
+    platform: Optional[str] = None,
+    search: Optional[str] = Query(None, max_length=200),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(12, ge=1, le=100),
+):
+    conditions = ["status=%s"]
+    args = ["posted"]
+    if platform and platform.lower() not in {"all", ""}:
+        normalized = PLATFORMS.get(platform.strip().lower())
+        if not normalized:
+            raise HTTPException(422, "Platform must be Facebook, Instagram, or LinkedIn.")
+        conditions.append("LOWER(platform)=LOWER(%s)")
+        args.append(normalized)
+    if search and search.strip():
+        like = f"%{search.strip()}%"
+        conditions.append("(topic LIKE %s OR post_content LIKE %s OR COALESCE(hashtags,'') LIKE %s OR COALESCE(platform_post_id,'') LIKE %s)")
+        args.extend([like] * 4)
+    where = " WHERE " + " AND ".join(conditions)
+    offset = (page - 1) * page_size
+    try:
+        with db() as conn:
+            cols = columns(conn)
+            if "platform_post_url" not in cols:
+                raise HTTPException(503, "Apply database/migrations/002_add_platform_post_url.sql before loading published previews.")
+            items = fetch_all(conn, f"SELECT id, topic, platform, post_content, hashtags, image_url, posted_at, platform_post_id, platform_post_url, status FROM social_posts{where} ORDER BY posted_at DESC, id DESC LIMIT %s OFFSET %s", (*args, page_size, offset))
+            total = fetch_one(conn, f"SELECT COUNT(*) AS total FROM social_posts{where}", args)["total"]
+        for item in items:
+            item["posted_at"] = local_json(item.get("posted_at"))
+        return {"items": items, "total": total, "page": page, "page_size": page_size, "pages": (total + page_size - 1) // page_size}
+    except HTTPException:
+        raise
+    except MySQLError as e:
+        logger.exception("Published post listing query failed")
+        raise HTTPException(503, "Could not load published posts from MySQL.") from e
 
 def normalize_generated(body):
     if isinstance(body, list) and len(body) == 1 and isinstance(body[0], dict):
@@ -327,7 +406,7 @@ def update(pid: int, x: Update):
             if "updated_at" in cols:
                 values["updated_at"] = datetime.now(timezone.utc).replace(tzinfo=None)
             if "scheduled_at" in values:
-                values["scheduled_at"] = mysql_datetime(values["scheduled_at"])
+                values["scheduled_at"] = local_datetime(values["scheduled_at"])
             sets = ", ".join(f"{name}=%s" for name in values)
             result = execute(conn, f"UPDATE social_posts SET {sets} WHERE id=%s", (*values.values(), pid))
             if not result["rowcount"]:
@@ -369,15 +448,22 @@ def retry(pid: int):
 def publish_result(pid: int, x: PublishResult):
     """Callback for n8n after a platform publish attempt; update the existing row."""
     try:
+        platform_url = valid_platform_url(x.platform_post_url) if x.status == "posted" else None
         with db() as conn:
             cols = columns(conn)
             values = {"status": x.status}
             if "platform_post_id" in cols:
-                values["platform_post_id"] = x.platform_post_id
+                values["platform_post_id"] = x.platform_post_id if x.status == "posted" else None
+            if "platform_post_url" in cols:
+                values["platform_post_url"] = platform_url
             if "error_message" in cols:
-                values["error_message"] = x.error_message
-            if "posted_at" in cols and x.status == "posted":
-                values["posted_at"] = mysql_datetime(x.posted_at) or datetime.now(timezone.utc).replace(tzinfo=None)
+                values["error_message"] = x.error_message if x.status == "failed" else None
+            if "posted_at" in cols:
+                values["posted_at"] = (mysql_datetime(x.posted_at) or datetime.now(timezone.utc).replace(tzinfo=None)) if x.status == "posted" else None
+            if x.status == "failed" and "error_message" in cols:
+                values["error_message"] = x.error_message or "Publishing failed. Check the n8n execution details."
+            if x.status == "posted" and "error_message" in cols:
+                values["error_message"] = None
             if "updated_at" in cols:
                 values["updated_at"] = datetime.now(timezone.utc).replace(tzinfo=None)
             sets = ", ".join(f"{name}=%s" for name in values)

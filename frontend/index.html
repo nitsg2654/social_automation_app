@@ -13,7 +13,7 @@
         <h2>✳ SocialFlow</h2>
         <p class="workspace">Nitish's Workspace</p>
         <nav><button data-tab="dashboard" class="active">▦ Dashboard</button><button data-tab="create">✳ Create
-                post</button><button data-tab="posts">▤ All posts</button><button data-tab="schedule">▦
+                post</button><button data-tab="posts">▤ All posts</button><button data-tab="published">? Published</button><button data-tab="schedule">▦
                 Scheduler</button><button data-tab="logs">≋ Activity & logs</button></nav>
         <footer><span id="health">Connecting…</span>
             <p>Nitish Gaurav · Admin</p>
@@ -89,6 +89,15 @@
                         <tbody id="rows"></tbody>
                     </table>
                 </div>
+            </div>
+        </section>
+        <section id="published" class="tab hidden"><small>CONTENT LIBRARY</small>
+            <div class="heading"><div><h1>Published posts</h1><p>Posts confirmed as successfully published by the platform workflow.</p></div></div>
+            <div class="panel">
+                <div class="filters"><input id="published-search" type="search" placeholder="Search content, hashtags, or post ID"><select id="published-platform"><option value="">All platforms</option><option value="Facebook">Facebook</option><option value="Instagram">Instagram</option><option value="LinkedIn">LinkedIn</option></select></div>
+                <p id="published-summary" class="muted"></p>
+                <div id="published-grid" class="published-grid" aria-live="polite"></div>
+                <div class="published-pagination"><button class="secondary" id="published-prev">Previous</button><span id="published-page">Page 1</span><button class="secondary" id="published-next">Next</button></div>
             </div>
         </section>
         <section id="schedule" class="tab hidden"><small>PUBLISHING PLAN</small>

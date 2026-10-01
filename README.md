@@ -57,3 +57,15 @@ Generated content remains temporary in frontend state. Approval inserts it into 
 API: `GET /api/health`, `GET /api/dashboard`, `GET /api/posts`, `POST /api/generate`, `POST /api/approve`, `POST /api/decline`, `PATCH /api/posts/{id}`, `POST /api/posts/{id}/retry`, `POST /api/posts/{id}/publish-result`, and `DELETE /api/posts/{id}`.
 
 No login is included; use only on a trusted network until authentication and access controls are added.
+
+## Published post previews and timezones
+
+The dashboard's Published Posts tab reads only rows with `status='posted'`. It supports platform filters, search, paging, image fallback, and links to `platform_post_url` only when a valid HTTP(S) URL was recorded. It refreshes when opened and every 20 seconds while visible. Failed publisher callbacks set `status='failed'`, clear posted metadata, and remain visible in All posts with the publisher error.
+
+`social_posts.platform_post_url` was added with the additive migration in `database/migrations/002_add_platform_post_url.sql`; it does not replace or delete existing rows. On an existing DB, apply that SQL once (the change has already been applied to the current project DB). Fresh MySQL volumes get the column from `database/init/001_social_posts.sql`.
+
+`APP_TIMEZONE` controls the app's scheduling and display timezone (default `Asia/Kolkata`, set to your Windows/system IANA timezone in `.env`). Datetimes are stored as UTC in MySQL `DATETIME`; published API timestamps include the configured local offset, and the browser formats them in that same zone. n8n publisher SQL writes UTC instants with `UTC_TIMESTAMP(6)` and converts local `scheduled_at` values before comparing with UTC. Keep the same `APP_TIMEZONE` in the app and scheduler. Use `POST /api/posts/{id}/publish-result` with `status`, platform-returned `platform_post_id`, optional platform-returned `platform_post_url`, and an optional ISO-8601 `posted_at`. Do not construct a post URL from an ID; omit the URL if the platform response did not provide a valid one.
+
+The current n8n publisher flows are inactive. Their MySQL queue flow's Facebook, Instagram, and LinkedIn nodes return post IDs, but no explicit original-post URL mapping was present in the workflow configuration. Therefore previews will show the link button only after the workflow receives/maps a genuine URL in the API response. Update each successful branch's MySQL update to set `platform_post_url` from that response field only; keep it NULL when absent. Continue setting `status='posted'` only on the success output, and send failures through the `failed` update/callback.
+
+Published posts API: `GET /api/posts/published?platform=Facebook&search=topic&page=1&page_size=9` (`platform`, `search`, and paging parameters are optional).

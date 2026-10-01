@@ -587,3 +587,26 @@ td b {
     resize: vertical;
     line-height: 1.45
 }
+.failure-note { display:block; color:#bd4e47; font-size:10px; margin-top:5px; max-width:320px; white-space:normal }
+.published-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr)); gap:16px; margin-top:12px }
+.published-card { min-width:0; background:#fff; border:1px solid #e8edf4; border-radius:13px; overflow:hidden; box-shadow:0 3px 12px #23324b08 }
+.published-card-head { display:flex; align-items:center; gap:10px; padding:14px 16px; border-bottom:1px solid #eff1f5 }
+.platform-icon { display:grid; place-items:center; width:36px; height:36px; border-radius:50%; color:#fff; font-weight:bold; font-size:17px; background:#4267b2 }
+.platform-icon.instagram { background:linear-gradient(135deg,#7441a6,#e94977,#f6a33a) }
+.platform-icon.linkedin { background:#0a66c2; font-size:13px }
+.published-platform { flex:1 }
+.published-platform b,.published-platform small { display:block }
+.published-platform small { letter-spacing:0; margin-top:3px; font-weight:normal }
+.published-image-wrap { height:205px; background:#f5f7fb; display:grid; place-items:center; overflow:hidden }
+.published-image { width:100%; height:100%; object-fit:cover }
+.image-fallback { color:#8793a6; font-size:12px; text-align:center; padding:20px }
+.published-copy { padding:15px 16px 8px }
+.published-copy small { letter-spacing:0; font-weight:bold }
+.published-copy p { color:#33425a; font-size:13px; line-height:1.55; white-space:pre-wrap; overflow-wrap:anywhere; margin:9px 0 }
+.published-hashtags { color:#416cf0; font-size:12px; line-height:1.5; overflow-wrap:anywhere }
+.published-meta { border-top:1px solid #eff1f5; padding:12px 16px; display:grid; gap:6px; color:#78869a; font-size:10px; overflow-wrap:anywhere }
+.published-card-actions { min-height:44px; padding:0 16px 15px; display:flex; align-items:center }
+.original-link { display:inline-block; text-decoration:none; font-size:11px; padding:10px 13px }
+.published-pagination { display:flex; justify-content:center; align-items:center; gap:14px; padding-top:20px; color:#718098; font-size:12px }
+.published-pagination button:disabled { opacity:.45; cursor:not-allowed }
+@media(max-width:650px) { .published-grid { grid-template-columns:1fr } .published-image-wrap { height:190px } .published-card-actions { flex-wrap:wrap } }

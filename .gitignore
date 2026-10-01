@@ -2,3 +2,5 @@
 .venv-migrate/
 __pycache__/
 *.py[cod]
+* (1).json
+* (2).json
