@@ -123,6 +123,22 @@ def local_json(value):
     return value.astimezone(APP_TIMEZONE)
 
 
+def database_local_json(value):
+    """Credential timestamps use MySQL's local CURRENT_TIMESTAMP timezone, configured as APP_TIMEZONE."""
+    if not isinstance(value, datetime):
+        return value
+    if value.tzinfo is None:
+        return value.replace(tzinfo=APP_TIMEZONE)
+    return value.astimezone(APP_TIMEZONE)
+
+
+def credential_timestamps(row):
+    if row:
+        for key in ("created_at", "updated_at"):
+            row[key] = database_local_json(row.get(key))
+    return row
+
+
 @app.on_event("startup")
 def init_db():
     # A side table gives approvals a unique idempotency key without changing the
@@ -137,6 +153,7 @@ def init_db():
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci""")
             execute(conn, """CREATE TABLE IF NOT EXISTS platform_credentials (
                 id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                credential_name VARCHAR(120) NOT NULL,
                 platform VARCHAR(30) NOT NULL,
                 page_id VARCHAR(255) NOT NULL,
                 access_token TEXT NOT NULL,
@@ -144,6 +161,10 @@ def init_db():
                 updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
                 UNIQUE KEY uq_platform_credentials_account (platform, page_id)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci""")
+            credential_name_column = fetch_one(conn, """SELECT COUNT(*) AS n FROM information_schema.columns
+                WHERE table_schema=DATABASE() AND table_name='platform_credentials' AND column_name='credential_name'""")
+            if not credential_name_column or not credential_name_column["n"]:
+                execute(conn, "ALTER TABLE platform_credentials ADD COLUMN credential_name VARCHAR(120) NOT NULL DEFAULT 'Unnamed account' AFTER id")
             existing = fetch_one(conn, "SELECT COUNT(*) AS n FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name=%s", ("social_posts",))
             if not existing or not existing["n"]:
                 logger.warning("social_posts does not exist yet; apply database/init/001_social_posts.sql or import PostgreSQL data")
@@ -192,9 +213,17 @@ class PublishResult(BaseModel):
 
 
 class PlatformCredential(BaseModel):
+    credential_name: str = Field(min_length=1, max_length=120)
     platform: str = Field(min_length=1, max_length=30)
     page_id: str = Field(min_length=1, max_length=255)
     access_token: str = Field(min_length=1, max_length=10000)
+
+
+class PlatformCredentialUpdate(BaseModel):
+    credential_name: Optional[str] = Field(default=None, min_length=1, max_length=120)
+    platform: Optional[str] = Field(default=None, min_length=1, max_length=30)
+    page_id: Optional[str] = Field(default=None, min_length=1, max_length=255)
+    access_token: Optional[str] = Field(default=None, min_length=1, max_length=10000)
 
 
 def normalize_credential_platform(value):
@@ -208,7 +237,8 @@ def normalize_credential_platform(value):
 def list_credentials():
     try:
         with db() as conn:
-            rows = fetch_all(conn, "SELECT id, platform, page_id, CONCAT(LEFT(access_token, 4), '••••', RIGHT(access_token, 4)) AS token_preview, created_at, updated_at FROM platform_credentials ORDER BY platform, page_id")
+            rows = fetch_all(conn, "SELECT id, credential_name, platform, page_id, CONCAT(LEFT(access_token, 4), '••••', RIGHT(access_token, 4)) AS token_preview, created_at, updated_at FROM platform_credentials ORDER BY platform, credential_name, page_id")
+        rows = [credential_timestamps(row) for row in rows]
         return {"items": rows}
     except MySQLError as e:
         logger.exception("Credential listing failed")
@@ -218,14 +248,15 @@ def list_credentials():
 @app.post("/api/credentials")
 def save_credential(x: PlatformCredential):
     platform = normalize_credential_platform(x.platform)
-    page_id, token = x.page_id.strip(), x.access_token.strip()
-    if not page_id or not token:
-        raise HTTPException(422, "Page/account ID and access token are required.")
+    credential_name, page_id, token = x.credential_name.strip(), x.page_id.strip(), x.access_token.strip()
+    if not credential_name or not page_id or not token:
+        raise HTTPException(422, "Credential name, page/account ID, and access token are required.")
     try:
         with db() as conn:
-            execute(conn, """INSERT INTO platform_credentials (platform, page_id, access_token)
-                VALUES (%s, %s, %s) ON DUPLICATE KEY UPDATE access_token=VALUES(access_token), updated_at=CURRENT_TIMESTAMP(6)""", (platform, page_id, token))
-            row = fetch_one(conn, "SELECT id, platform, page_id, CONCAT(LEFT(access_token, 4), '••••', RIGHT(access_token, 4)) AS token_preview, created_at, updated_at FROM platform_credentials WHERE platform=%s AND page_id=%s", (platform, page_id))
+            execute(conn, """INSERT INTO platform_credentials (credential_name, platform, page_id, access_token)
+                VALUES (%s, %s, %s, %s) ON DUPLICATE KEY UPDATE credential_name=VALUES(credential_name), access_token=VALUES(access_token), updated_at=CURRENT_TIMESTAMP(6)""", (credential_name, platform, page_id, token))
+            row = fetch_one(conn, "SELECT id, credential_name, platform, page_id, CONCAT(LEFT(access_token, 4), '••••', RIGHT(access_token, 4)) AS token_preview, created_at, updated_at FROM platform_credentials WHERE platform=%s AND page_id=%s", (platform, page_id))
+        row = credential_timestamps(row)
         return {"ok": True, "credential": row}
     except MySQLError as e:
         logger.exception("Credential save failed")
@@ -236,15 +267,47 @@ def save_credential(x: PlatformCredential):
 def get_credential(credential_id: int):
     try:
         with db() as conn:
-            row = fetch_one(conn, "SELECT id, platform, page_id, access_token, created_at, updated_at FROM platform_credentials WHERE id=%s", (credential_id,))
+            row = fetch_one(conn, "SELECT id, credential_name, platform, page_id, access_token, created_at, updated_at FROM platform_credentials WHERE id=%s", (credential_id,))
         if not row:
             raise HTTPException(404, "Credential not found")
+        row = credential_timestamps(row)
         return row
     except HTTPException:
         raise
     except MySQLError as e:
         logger.exception("Credential retrieval failed")
         raise HTTPException(503, "Could not retrieve platform credentials from MySQL.") from e
+
+
+@app.patch("/api/credentials/{credential_id}")
+def update_credential(credential_id: int, x: PlatformCredentialUpdate):
+    values = x.model_dump(exclude_unset=True)
+    if not values:
+        raise HTTPException(400, "No credential changes supplied")
+    if "platform" in values:
+        values["platform"] = normalize_credential_platform(values["platform"])
+    for key in ("credential_name", "page_id", "access_token"):
+        if key in values:
+            values[key] = values[key].strip()
+            if not values[key]:
+                raise HTTPException(422, f"{key} cannot be blank.")
+    try:
+        with db() as conn:
+            result = execute(conn, f"UPDATE platform_credentials SET {', '.join(f'{key}=%s' for key in values)}, updated_at=CURRENT_TIMESTAMP(6) WHERE id=%s", (*values.values(), credential_id))
+            if not result["rowcount"]:
+                exists = fetch_one(conn, "SELECT id FROM platform_credentials WHERE id=%s", (credential_id,))
+                if not exists:
+                    raise HTTPException(404, "Credential not found")
+            row = fetch_one(conn, "SELECT id, credential_name, platform, page_id, CONCAT(LEFT(access_token, 4), '••••', RIGHT(access_token, 4)) AS token_preview, created_at, updated_at FROM platform_credentials WHERE id=%s", (credential_id,))
+        row = credential_timestamps(row)
+        return {"ok": True, "credential": row}
+    except mysql.connector.IntegrityError as e:
+        raise HTTPException(409, "Another saved credential already uses this platform and page/account ID.") from e
+    except HTTPException:
+        raise
+    except MySQLError as e:
+        logger.exception("Credential update failed")
+        raise HTTPException(503, "Could not update platform credentials in MySQL.") from e
 
 
 @app.delete("/api/credentials/{credential_id}")

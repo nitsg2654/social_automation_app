@@ -601,6 +601,9 @@ td b {
 .published-image { width:100%; height:100%; object-fit:cover }
 .image-fallback { color:#8793a6; font-size:12px; text-align:center; padding:20px }
 .published-copy { padding:15px 16px 8px }
+.credential-token-cell { display:inline-flex; align-items:center; gap:6px; white-space:nowrap }
+.copy-credential { display:inline-grid; place-items:center; width:27px; height:27px; padding:4px; margin:0; color:#526078 }
+.copy-credential svg { width:15px; height:15px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round }
 .published-copy small { letter-spacing:0; font-weight:bold }
 .published-copy p { color:#33425a; font-size:13px; line-height:1.55; white-space:pre-wrap; overflow-wrap:anywhere; margin:9px 0 }
 .published-hashtags { color:#416cf0; font-size:12px; line-height:1.5; overflow-wrap:anywhere }

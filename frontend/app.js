@@ -53,16 +53,57 @@ async function loadCredentials() {
     const root = $('#credential-rows');
     try {
         const d = await api('/credentials');
-        root.innerHTML = (d.items || []).map(c => `<tr><td>${esc(c.platform)}</td><td>${esc(c.page_id)}</td><td>${esc(c.token_preview)}</td><td>${esc(dt(c.updated_at))}</td><td><button class="action" onclick="deleteCredential(${Number(c.id)})">Delete</button></td></tr>`).join('') || '<tr><td colspan="5" class="empty">No saved accounts yet.</td></tr>';
-    } catch (e) { root.innerHTML = `<tr><td colspan="5" class="empty">Could not load credentials: ${esc(e.message)}</td></tr>`; }
+        root.innerHTML = (d.items || []).map(c => `<tr><td>${esc(c.credential_name)}</td><td>${esc(c.platform)}</td><td>${esc(c.page_id)}</td><td><span class="credential-token-cell">${esc(c.token_preview)}<button type="button" class="action copy-credential" data-credential-id="${Number(c.id)}" title="Copy access token" aria-label="Copy access token"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"></rect><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"></path></svg></button></span></td><td>${esc(dt(c.updated_at))}</td><td><button type="button" class="action" data-edit-credential="${Number(c.id)}" data-name="${esc(c.credential_name)}" data-platform="${esc(c.platform)}" data-page-id="${esc(c.page_id)}">Edit</button><button type="button" class="action" onclick="deleteCredential(${Number(c.id)})">Delete</button></td></tr>`).join('') || '<tr><td colspan="6" class="empty">No saved accounts yet.</td></tr>';
+    } catch (e) { root.innerHTML = `<tr><td colspan="6" class="empty">Could not load credentials: ${esc(e.message)}</td></tr>`; }
 }
+async function copyCredential(id, button) {
+    try {
+        const item = await api('/credentials/' + encodeURIComponent(id));
+        if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(item.access_token);
+        else {
+            const field = document.createElement('textarea');
+            field.value = item.access_token; field.style.position = 'fixed'; field.style.opacity = '0';
+            document.body.appendChild(field); field.select();
+            const copied = document.execCommand('copy'); field.remove();
+            if (!copied) throw Error('Clipboard access is unavailable in this browser.');
+        }
+        toast('Access token copied');
+    } catch (e) { toast('Could not copy token: ' + e.message); }
+}
+$('#credential-rows').addEventListener('click', event => {
+    const button = event.target.closest('[data-credential-id]');
+    if (button) copyCredential(button.dataset.credentialId, button);
+    const edit = event.target.closest('[data-edit-credential]');
+    if (edit) {
+        $('#credential-edit-id').value = edit.dataset.editCredential;
+        $('#credential-edit-name').value = edit.dataset.name;
+        $('#credential-edit-platform').value = edit.dataset.platform;
+        $('#credential-edit-page-id').value = edit.dataset.pageId;
+        $('#credential-edit-token').value = '';
+        $('#credential-edit-message').textContent = '';
+        $('#credential-edit-modal').classList.remove('hidden');
+    }
+});
+$('#credential-edit-close').onclick = () => $('#credential-edit-modal').classList.add('hidden');
+$('#credential-edit-form').addEventListener('submit', async event => {
+    event.preventDefault();
+    const button = $('#credential-edit-save'), message = $('#credential-edit-message');
+    button.disabled = true; message.textContent = '';
+    const body = { credential_name: $('#credential-edit-name').value.trim(), platform: $('#credential-edit-platform').value, page_id: $('#credential-edit-page-id').value.trim() };
+    if ($('#credential-edit-token').value.trim()) body.access_token = $('#credential-edit-token').value.trim();
+    try {
+        await api('/credentials/' + $('#credential-edit-id').value, { method: 'PATCH', body: JSON.stringify(body) });
+        $('#credential-edit-modal').classList.add('hidden'); toast('Credentials updated'); await loadCredentials();
+    } catch (e) { message.textContent = e.message; }
+    finally { button.disabled = false; }
+});
 $('#credential-form').addEventListener('submit', async event => {
     event.preventDefault();
     const button = $('#credential-submit'), message = $('#credential-message');
     button.disabled = true; message.textContent = '';
     try {
-        await api('/credentials', { method: 'POST', body: JSON.stringify({ platform: $('#credential-platform').value, page_id: $('#credential-page-id').value.trim(), access_token: $('#credential-token').value.trim() }) });
-        $('#credential-token').value = ''; message.textContent = 'Credentials saved. The access token is hidden.'; toast('Credentials saved'); await loadCredentials();
+        await api('/credentials', { method: 'POST', body: JSON.stringify({ credential_name: $('#credential-name').value.trim(), platform: $('#credential-platform').value, page_id: $('#credential-page-id').value.trim(), access_token: $('#credential-token').value.trim() }) });
+        $('#credential-name').value = ''; $('#credential-token').value = ''; message.textContent = 'Credentials saved. The access token is hidden.'; toast('Credentials saved'); await loadCredentials();
     } catch (e) { message.textContent = e.message; }
     finally { button.disabled = false; }
 });

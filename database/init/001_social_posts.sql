@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS social_posts (
 
 CREATE TABLE IF NOT EXISTS platform_credentials (
   id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  credential_name VARCHAR(120) NOT NULL,
   platform VARCHAR(30) NOT NULL,
   page_id VARCHAR(255) NOT NULL,
   access_token TEXT NOT NULL,

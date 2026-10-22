@@ -109,13 +109,14 @@
             <h1>Platform credentials</h1>
             <p>Save an access token and page or account ID for a platform. Tokens are hidden in this list.</p>
             <form id="credential-form" class="panel form">
+                <label for="credential-name">Credential name (owner or purpose)</label><input id="credential-name" required maxlength="120" autocomplete="organization" placeholder="e.g. Nitish - Brand Facebook page">
                 <label for="credential-platform">Platform</label>
                 <select id="credential-platform" required><option value="">Choose a platform</option><option>Facebook</option><option>Instagram</option><option>LinkedIn</option></select>
                 <label for="credential-page-id">Page or account ID</label><input id="credential-page-id" required maxlength="255" autocomplete="off" placeholder="Platform page/account ID">
                 <label for="credential-token">Access token</label><input id="credential-token" type="password" required maxlength="10000" autocomplete="new-password" placeholder="Paste access token">
                 <button class="primary" id="credential-submit" type="submit">Save credentials</button><p id="credential-message" aria-live="polite"></p>
             </form>
-            <div class="panel credential-list-panel"><h3>Saved accounts</h3><div class="table-scroll"><table><thead><tr><th>PLATFORM</th><th>PAGE / ACCOUNT ID</th><th>TOKEN</th><th>UPDATED</th><th>ACTIONS</th></tr></thead><tbody id="credential-rows"></tbody></table></div></div>
+            <div class="panel credential-list-panel"><h3>Saved accounts</h3><div class="table-scroll"><table><thead><tr><th>NAME / PURPOSE</th><th>PLATFORM</th><th>PAGE / ACCOUNT ID</th><th>TOKEN</th><th>UPDATED</th><th>ACTIONS</th></tr></thead><tbody id="credential-rows"></tbody></table></div></div>
         </section>
         <section id="logs" class="tab hidden"><small>SYSTEM HEALTH</small>
             <h1>Activity & logs</h1>
@@ -139,8 +140,19 @@
                 id="save">Save changes</button>
         </div>
     </div>
+    <div id="credential-edit-modal" class="overlay hidden">
+        <form id="credential-edit-form" class="dialog">
+            <button class="close" id="credential-edit-close" type="button">×</button>
+            <h2>Edit credentials</h2><input type="hidden" id="credential-edit-id">
+            <label for="credential-edit-name">Credential name</label><input id="credential-edit-name" required maxlength="120">
+            <label for="credential-edit-platform">Platform</label><select id="credential-edit-platform" required><option>Facebook</option><option>Instagram</option><option>LinkedIn</option></select>
+            <label for="credential-edit-page-id">Page or account ID</label><input id="credential-edit-page-id" required maxlength="255">
+            <label for="credential-edit-token">Replace access token (optional)</label><input id="credential-edit-token" type="password" maxlength="10000" autocomplete="new-password" placeholder="Leave blank to keep the current token">
+            <button class="primary" id="credential-edit-save" type="submit">Save changes</button><p id="credential-edit-message" aria-live="polite"></p>
+        </form>
+    </div>
     <div id="toast"></div>
-    <script src="/static/app.js?v=20261016-3" defer></script>
+    <script src="/static/app.js?v=20261022-4" defer></script>
 </body>
 
 </html>

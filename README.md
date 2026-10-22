@@ -72,9 +72,9 @@ Published posts API: `GET /api/posts/published?platform=Facebook&search=topic&pa
 
 ## Platform credentials
 
-The Credentials page saves one access token per platform/page ID in the separate MySQL `platform_credentials` table. Re-submitting the same platform and page ID updates that row. The UI and list endpoint show only a masked token preview. This app currently has no authentication, so deploy it only on a trusted network and add authentication before exposing it publicly. Tokens are stored as database text and should be protected with restricted database/network access and backups.
+The Credentials page saves a descriptive credential name (owner or purpose), one access token, and page/account ID per platform in the separate MySQL `platform_credentials` table. Re-submitting the same platform and page ID updates that row. The UI and list endpoint show only a masked token preview. This app currently has no authentication, so deploy it only on a trusted network and add authentication before exposing it publicly. Tokens are stored as database text and should be protected with restricted database/network access and backups.
 
-On a fresh MySQL volume, `database/init/001_social_posts.sql` creates the table. On an existing volume, apply `database/migrations/003_create_platform_credentials.sql` once, then rebuild/restart the API (`docker compose up -d --build social-dashboard`). The API also creates this table at startup if it is missing.
+On a fresh MySQL volume, `database/init/001_social_posts.sql` creates the table. On an existing volume, apply `database/migrations/003_create_platform_credentials.sql` if needed and `database/migrations/004_add_credential_name.sql` once, then rebuild/restart the API (`docker compose up -d --build social-dashboard`). The API adds the name column at startup if it is missing.
 
 Retrieval options:
 
@@ -82,4 +82,4 @@ Retrieval options:
 - Fetch the full token for a single row by its returned `id`: `GET /api/credentials/{id}`. Use this from a trusted server-side publisher workflow; do not expose this response in browser code or logs. Delete a row with `DELETE /api/credentials/{id}`.
 - In n8n, a MySQL node can read `SELECT platform, page_id, access_token FROM platform_credentials WHERE platform = ? AND page_id = ?` using the existing app MySQL credential. Prefer server-side retrieval and limit workflow execution/log retention because tokens are secrets.
 
-Create/update credentials with `POST /api/credentials` and JSON `{"platform":"Facebook","page_id":"123456","access_token":"..."}`. Supported platforms are Facebook, Instagram, and LinkedIn. The app currently stores tokens as plaintext in MySQL; use an encrypted-at-rest setup and authentication before production use.
+Create/update credentials with `POST /api/credentials` and JSON `{"credential_name":"Priya - Brand page","platform":"Facebook","page_id":"123456","access_token":"..."}`. Supported platforms are Facebook, Instagram, and LinkedIn. The app currently stores tokens as plaintext in MySQL; use an encrypted-at-rest setup and authentication before production use.
