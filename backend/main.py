@@ -135,6 +135,15 @@ def init_db():
                 created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
                 UNIQUE KEY uq_social_approval_post (post_id)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci""")
+            execute(conn, """CREATE TABLE IF NOT EXISTS platform_credentials (
+                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                platform VARCHAR(30) NOT NULL,
+                page_id VARCHAR(255) NOT NULL,
+                access_token TEXT NOT NULL,
+                created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+                updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+                UNIQUE KEY uq_platform_credentials_account (platform, page_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci""")
             existing = fetch_one(conn, "SELECT COUNT(*) AS n FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name=%s", ("social_posts",))
             if not existing or not existing["n"]:
                 logger.warning("social_posts does not exist yet; apply database/init/001_social_posts.sql or import PostgreSQL data")
@@ -180,6 +189,77 @@ class PublishResult(BaseModel):
     platform_post_url: Optional[str] = Field(default=None, max_length=2048)
     error_message: Optional[str] = None
     posted_at: Optional[datetime] = None
+
+
+class PlatformCredential(BaseModel):
+    platform: str = Field(min_length=1, max_length=30)
+    page_id: str = Field(min_length=1, max_length=255)
+    access_token: str = Field(min_length=1, max_length=10000)
+
+
+def normalize_credential_platform(value):
+    normalized = PLATFORMS.get(value.strip().lower())
+    if not normalized:
+        raise HTTPException(422, "Platform must be Facebook, Instagram, or LinkedIn.")
+    return normalized
+
+
+@app.get("/api/credentials")
+def list_credentials():
+    try:
+        with db() as conn:
+            rows = fetch_all(conn, "SELECT id, platform, page_id, CONCAT(LEFT(access_token, 4), '••••', RIGHT(access_token, 4)) AS token_preview, created_at, updated_at FROM platform_credentials ORDER BY platform, page_id")
+        return {"items": rows}
+    except MySQLError as e:
+        logger.exception("Credential listing failed")
+        raise HTTPException(503, "Could not load platform credentials from MySQL.") from e
+
+
+@app.post("/api/credentials")
+def save_credential(x: PlatformCredential):
+    platform = normalize_credential_platform(x.platform)
+    page_id, token = x.page_id.strip(), x.access_token.strip()
+    if not page_id or not token:
+        raise HTTPException(422, "Page/account ID and access token are required.")
+    try:
+        with db() as conn:
+            execute(conn, """INSERT INTO platform_credentials (platform, page_id, access_token)
+                VALUES (%s, %s, %s) ON DUPLICATE KEY UPDATE access_token=VALUES(access_token), updated_at=CURRENT_TIMESTAMP(6)""", (platform, page_id, token))
+            row = fetch_one(conn, "SELECT id, platform, page_id, CONCAT(LEFT(access_token, 4), '••••', RIGHT(access_token, 4)) AS token_preview, created_at, updated_at FROM platform_credentials WHERE platform=%s AND page_id=%s", (platform, page_id))
+        return {"ok": True, "credential": row}
+    except MySQLError as e:
+        logger.exception("Credential save failed")
+        raise HTTPException(503, "Could not save platform credentials to MySQL.") from e
+
+
+@app.get("/api/credentials/{credential_id}")
+def get_credential(credential_id: int):
+    try:
+        with db() as conn:
+            row = fetch_one(conn, "SELECT id, platform, page_id, access_token, created_at, updated_at FROM platform_credentials WHERE id=%s", (credential_id,))
+        if not row:
+            raise HTTPException(404, "Credential not found")
+        return row
+    except HTTPException:
+        raise
+    except MySQLError as e:
+        logger.exception("Credential retrieval failed")
+        raise HTTPException(503, "Could not retrieve platform credentials from MySQL.") from e
+
+
+@app.delete("/api/credentials/{credential_id}")
+def delete_credential(credential_id: int):
+    try:
+        with db() as conn:
+            result = execute(conn, "DELETE FROM platform_credentials WHERE id=%s", (credential_id,))
+            if not result["rowcount"]:
+                raise HTTPException(404, "Credential not found")
+        return {"ok": True, "id": credential_id}
+    except HTTPException:
+        raise
+    except MySQLError as e:
+        logger.exception("Credential deletion failed")
+        raise HTTPException(503, "Could not delete platform credentials from MySQL.") from e
 
 
 @app.get("/api/health")

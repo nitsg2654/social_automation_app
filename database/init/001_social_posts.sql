@@ -19,3 +19,13 @@ CREATE TABLE IF NOT EXISTS social_posts (
   KEY idx_social_posts_status_schedule (status, scheduled_at),
   KEY idx_social_posts_platform_posted (platform, posted_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE IF NOT EXISTS platform_credentials (
+  id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  platform VARCHAR(30) NOT NULL,
+  page_id VARCHAR(255) NOT NULL,
+  access_token TEXT NOT NULL,
+  created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  UNIQUE KEY uq_platform_credentials_account (platform, page_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;

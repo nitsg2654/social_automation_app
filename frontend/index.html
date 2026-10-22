@@ -12,15 +12,15 @@
     <aside>
         <h2>✳ SocialFlow</h2>
         <p class="workspace">Nitish's Workspace</p>
-        <nav><button data-tab="dashboard" class="active">▦ Dashboard</button><button data-tab="create">✳ Create
-                post</button><button data-tab="posts">▤ All posts</button><button data-tab="published">? Published</button><button data-tab="schedule">▦
-                Scheduler</button><button data-tab="logs">≋ Activity & logs</button></nav>
+        <nav><button type="button" data-tab="dashboard" class="active">▦ Dashboard</button><button type="button" data-tab="create">✳ Create
+                post</button><button type="button" data-tab="posts">▤ All posts</button><button type="button" data-tab="published">? Published</button><button type="button" data-tab="schedule">▦
+                Scheduler</button><button type="button" data-tab="credentials">Credentials</button><button type="button" data-tab="logs">≋ Activity & logs</button></nav>
         <footer><span id="health">Connecting…</span>
             <p>Nitish Gaurav · Admin</p>
         </footer>
     </aside>
     <main>
-        <header><span>Workspace / <b id="crumb">Dashboard</b></span><button id="refresh">↻ Refresh</button></header>
+        <header><span>Workspace / <b id="crumb">Dashboard</b></span><button id="refresh" type="button">↻ Refresh</button></header>
         <section id="dashboard" class="tab">
             <div class="heading">
                 <div><small>OVERVIEW</small>
@@ -105,6 +105,18 @@
             <p>Posts with scheduled dates.</p>
             <div class="panel" id="scheduled"></div>
         </section>
+        <section id="credentials" class="tab hidden"><small>CONNECTED ACCOUNTS</small>
+            <h1>Platform credentials</h1>
+            <p>Save an access token and page or account ID for a platform. Tokens are hidden in this list.</p>
+            <form id="credential-form" class="panel form">
+                <label for="credential-platform">Platform</label>
+                <select id="credential-platform" required><option value="">Choose a platform</option><option>Facebook</option><option>Instagram</option><option>LinkedIn</option></select>
+                <label for="credential-page-id">Page or account ID</label><input id="credential-page-id" required maxlength="255" autocomplete="off" placeholder="Platform page/account ID">
+                <label for="credential-token">Access token</label><input id="credential-token" type="password" required maxlength="10000" autocomplete="new-password" placeholder="Paste access token">
+                <button class="primary" id="credential-submit" type="submit">Save credentials</button><p id="credential-message" aria-live="polite"></p>
+            </form>
+            <div class="panel credential-list-panel"><h3>Saved accounts</h3><div class="table-scroll"><table><thead><tr><th>PLATFORM</th><th>PAGE / ACCOUNT ID</th><th>TOKEN</th><th>UPDATED</th><th>ACTIONS</th></tr></thead><tbody id="credential-rows"></tbody></table></div></div>
+        </section>
         <section id="logs" class="tab hidden"><small>SYSTEM HEALTH</small>
             <h1>Activity & logs</h1>
             <p>Recent successes and failures.</p>
@@ -128,7 +140,7 @@
         </div>
     </div>
     <div id="toast"></div>
-    <script src="/static/app.js"></script>
+    <script src="/static/app.js?v=20261016-3" defer></script>
 </body>
 
 </html>
